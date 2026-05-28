@@ -1,48 +1,86 @@
-import React from 'react';
-import { View, Text, ScrollView, Platform } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import {
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  View,
+  ActivityIndicator,
+} from 'react-native';
+import ListingFeed from '../../src/components/ListingFeed'; // Tu componente externo reutilizable
+import apiClient from '../../src/api/apiClient'; // 🚀 Importamos tu cliente de Axios configurado
 import Header from '../../src/components/Header';
-import BookIllustration from '../../src/components/BookIllustration';
-import { StatusBar } from 'expo-status-bar';
-
 export default function HomeScreen() {
+  const [listings, setListings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Petición al endpoint usando tu apiClient de Axios
+  const fetchListings = async () => {
+    try {
+      // Como tu base URL ya es 'http://192.168.1.132/api', solo le concatenamos el endpoint
+      const response = await apiClient.get('/listings/random?limit=15');
+
+      // Axios mete la respuesta del servidor dentro de .data
+      if (response.data && response.data.success) {
+        setListings(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error cargando el feed en Android/iOS:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchListings();
+  }, []);
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchListings(); // Vuelve a pedir anuncios aleatorios al deslizar hacia abajo (Pull-to-refresh)
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#1e88e5" />
+      </View>
+    );
+  }
+
   return (
-    <View className="flex-1 bg-slate-950" style={{ width: '100%' }}>
-      {/* Barra superior adaptada */}
+    <SafeAreaView style={styles.container}>
       <Header />
-
-      {/* Contenido principal */}
-      <ScrollView
-        contentContainerStyle={{
-          flexGrow: 1,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-        className="p-6"
-      >
-        <View
-          style={{
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginVertical: 32,
-            width: '100%',
-            maxWidth: 600,
-          }}
-        >
-          <View style={{ marginBottom: 24 }}>
-            <BookIllustration size={Platform.OS === 'web' ? 300 : 240} />
-          </View>
-
-          <Text className="text-white text-2xl font-bold text-center mb-2">
-            ¡Tu espacio de intercambio listo!
-          </Text>
-          <Text className="text-slate-400 text-center">
-            Aquí empezaremos a listar las publicaciones de libros disponibles en
-            tu municipio.
-          </Text>
-        </View>
-      </ScrollView>
-
-      <StatusBar style="light" />
-    </View>
+      <ListingFeed
+        data={listings}
+        refreshing={refreshing}
+        onRefresh={handleRefresh}
+      />
+    </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  header: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#222',
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+});
